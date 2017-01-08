@@ -1,0 +1,490 @@
+<html>
+<body onload = "update();">
+<style>
+canvas{
+
+ 	background-image:url("circuit.jpg");
+ 	background-size:100%;
+  	position:absolute;
+ 	margin:0px;
+ }
+#menu {
+	width:800;
+	height:400;
+	background-color:black;
+	position:absolute;
+	margin:0px;
+	opacity:0.7;
+}
+#start {
+	position:absolute;	
+	background-color:darkgrey;
+	width:30%;
+	height:10%;
+	border-radius:30px;
+	left:35%;
+	top:20%;
+	text-align:center;
+	font-weight:bold;
+	font-size:200%;
+}
+#final-distance {
+	position:absolute;
+	color:grey;
+	left:30%;
+	top:50%;
+	background-color:black;
+	font-weight:bold;
+	font-size:160%;
+	display:none;
+}
+</style>
+
+<canvas id="canvas"> </canvas>
+<div id="menu">
+	<div id = "start">Start Game</div>
+	<div id = "final-distance"></div>
+</div>
+<script src = "jquery.js"></script>
+<script>
+//Jquery
+$("#start").click(function(){
+	$("#menu").hide();
+});
+
+//Variables
+var canvas = document.getElementById("canvas"),
+    ctx = canvas.getContext("2d"),
+    width = 800,
+    height = 400,
+    player = {
+        x: 50,
+        y: 110,
+        width: 20,
+        height: 84,
+        speed: 6,
+        velX: 0,
+        velY: 0,
+        jumping: false,
+        grounded: false
+       
+    },
+    keys = [],
+    friction = 0.8,
+    gravity = .5;
+	lastFire = Date.now();
+	facingLeft = false;
+	boxes = [];
+	bullets = [];
+	enemies = [];
+	coins = [];
+	dolar = new Image();
+	coinsCount=0;
+
+dolar.src ="dolar.png";
+canvas.width = width;
+canvas.height = height;
+ 
+
+coins.push({
+	x:100,
+	y:300,
+	width:20,
+	height:20
+});
+for (var i=0;i<20;i++){
+coins.push({
+	x:i*40+500,
+	y:260,
+	width:20,
+	height:20
+})
+}
+enemies.push({
+	x:400,
+	y:370,
+	dx:3
+	
+});
+//Platforms
+boxes.push({
+    x: 0,
+    y: 350,
+    width: 300,
+    height: 620
+});
+boxes.push({
+	x:500,
+	y:300,
+	width:700,
+	height:100
+});
+boxes.push({
+	x:500,
+	y:600,
+	width:1000,
+	height:150
+});
+
+
+var exists=true;
+//Draw everything
+function update() {
+	ctx.save();
+
+	//If player.x>400 follow the player
+	if(player.x>400){
+		ctx.translate(-player.x+400,0);
+	}
+	if(player.y>200){
+		ctx.translate(0,-player.y+200);
+	}
+	ctx.clearRect(player.x-width, player.y-height, width*3, height*3);
+	var distance = Math.floor(player.x/30-1);
+
+	if($("#final-distance").css("display","block")){
+		$("#start").click(function(){
+			$("#menu").hide();
+			player.x=50;
+			player.y=100;
+
+		});
+	}
+    // Check keys
+    if($("#menu").is(":hidden")){
+    	if (keys[38] || keys[87] ) {
+        	//Up arrow or w
+        	if (!player.jumping && player.grounded ) {
+            player.jumping = true;
+            player.grounded = false;
+            player.velY = -player.speed*2;
+        	}
+    	}
+    
+    	if (keys[39] || keys[68]) {
+        	//Right arrow or d
+        	if (player.velX < player.speed) {        	
+            	player.velX+=2;          
+        	}
+        	
+     	facingLeft = false;
+    	}
+
+    	if (keys[37] || keys[65]) {
+    	    //Left arrow or a
+    	    if (player.velX > -player.speed) {
+    	        player.velX-=2;            
+    	    }    
+    	facingLeft = true;
+    	}
+    }
+    player.velX *= friction;
+    player.velY += gravity;
+
+    
+    ctx.fillStyle = "black";
+
+    ctx.beginPath();
+    
+    player.grounded = false;
+    for (var i = 0; i < boxes.length; i++) {
+        ctx.fillRect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
+        
+        var dir = colCheck(player, boxes[i]);
+
+        if (dir === "l" || dir === "r") {
+            player.velX = 0;
+            player.jumping = false;
+        } else if (dir === "b") {
+            player.grounded = true;
+            player.jumping = false;
+        } else if (dir === "t") {
+            player.velY *= -1;
+        }
+
+    }
+
+    if(player.x-10<0){
+    	player.velX=1;
+    }
+    
+    if(player.grounded){
+         player.velY = 0;
+    }
+    
+    player.x += player.velX;
+    player.y += player.velY;
+
+    ctx.fill();
+    ctx.fillStyle = "black";
+    //lopta
+    
+
+    ctx.fillStyle = 'black';
+  
+
+ 	if($("#menu").is(":hidden")){
+		if(keys[32] &&Date.now()-lastFire>50){
+			bullets.push({
+			x:facingLeft? player.x-22:player.x+47,
+			y:player.y+25,
+			dx:facingLeft ? -10 : 10		
+			});	
+			lastFire = Date.now();
+		}
+	}
+	if(keys[13] && $("#menu").is(":visible")) {
+			$("#menu").hide();
+			player.x=50;
+			player.y=100;
+	}
+
+	for (var i=0;i<bullets.length;i++){
+		ctx.beginPath();
+		ctx.arc(bullets[i].x,bullets[i].y,2,0,Math.PI*2);
+		ctx.fill();
+		bullets[i].x += bullets[i].dx;
+		
+		if(exists) {
+
+			if(bullets[i].x>enemies[0].x-10 &&bullets[i].x<enemies[0].x+10 && bullets[i].y>enemies[0].y-10 && bullets[i].y<enemies[0].y+10){
+		
+				enemies.splice(0,1);
+				bullets.splice(i,1);
+			
+			exists=false;
+			}
+		}
+	}
+
+	for (i=0;i<enemies.length;i++){
+		ctx.fillStyle = "red";
+		ctx.beginPath();
+		ctx.arc(enemies[i].x,enemies[i].y,10,0,Math.PI*2);
+		ctx.fill();
+		enemies[i].x+=enemies[i].dx;
+		if(enemies[i].x>400 || enemies[i].x<320){
+			enemies[i].dx=-enemies[i].dx;
+		}
+		if(player.x>enemies[i].x-10 &&player.x<enemies[i].x+10 &&player.y>enemies[i].y-10  &&player.y<enemies[i].y+10){
+			document.location.reload();
+		}
+		
+	}
+	if(keys[32] && keys[37]){
+		ctx.drawImage(playerImage,
+ 		indexXLeftShoot*playerImage.width/7,
+ 		indexYLeftShoot*playerImage.height/10,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		player.x-37,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+	}
+	else if (keys[32] && keys[39]){
+		ctx.drawImage(playerImage,
+ 		indexXRightShoot*playerImage.width/7,
+ 		indexYRightShoot*playerImage.height/10,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		player.x-48,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+	}
+	else if(keys[39]){
+ 	ctx.drawImage(playerImage,
+ 		indexX*playerImage.width/7,
+ 		indexY*playerImage.height/10,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		player.x-48,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+	}
+
+	else if(keys[37])
+	{
+		
+		ctx.drawImage(playerImage,
+ 		indexXleft*playerImage.width/7,
+ 		indexYleft*playerImage.height/10,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		player.x-37,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+
+	}
+	else if( keys[32]){
+		ctx.drawImage(playerImage,
+ 		96*6,
+ 		facingLeft ? 288:96,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		facingLeft? player.x-37:player.x-48,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+	}
+	
+	else if(!facingLeft)
+	{
+		ctx.drawImage(playerImage,
+ 		0,
+ 		0,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		player.x-48,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+
+	}
+	else if(facingLeft)
+	{
+		ctx.drawImage(playerImage,
+ 		0,
+ 		192,
+ 		playerImage.width/7,
+ 		playerImage.height/10,
+ 		player.x-37,
+ 		player.y-12,
+ 		playerImage.width/7,
+ 		playerImage.height/10 );
+
+	}
+	ctx.fillStyle = "yellow";
+	for (var i=0;i<coins.length;i++){
+		ctx.drawImage(dolar,coins[i].x,coins[i].y,coins[i].width,coins[i].height);
+	
+		if(player.x+player.width>coins[i].x && player.x<coins[i].x+coins[i].width && player.y+player.height>coins[i].y &&player.y<coins[i].y+coins[i].height){
+			
+			coins.splice(i,1);
+			coinsCount++;		
+		}
+	}
+	
+
+	ctx.restore();
+	
+	ctx.font = "20px Arial Black";
+
+	ctx.fillText("Coins: "+coinsCount,10,30);
+	ctx.fillText("x:"+Math.floor(player.x),700,25);
+	ctx.fillText("y:"+Math.floor(player.y),700,45);
+
+    requestAnimationFrame(update);
+}
+
+
+
+   var playerImage = new Image();
+playerImage.src = "plyr-01.png";
+
+var indexX = 0;
+var indexY = 0;
+var indexXleft = 0;
+var indexYleft =2;
+var indexXRightShoot =0;
+var indexYRightShoot =4;
+var indexXLeftShoot =0;
+var indexYLeftShoot =6;
+    
+
+function updateSprite()
+{      
+      indexX++;  
+      indexXleft++;
+      indexXRightShoot++;
+      indexXLeftShoot++;
+      if(indexXLeftShoot>6){
+      	indexXLeftShoot=0;
+      	indexYLeftShoot++;
+      }
+      if (indexXRightShoot>6){
+      	indexXRightShoot=0;
+      	indexYRightShoot++;
+      }
+      if(indexXleft>6){
+      	indexXleft=0;
+      	indexYleft++;
+      }
+      if(indexX>6){
+            indexX=0;
+            indexY++;                      
+      }
+      if(indexXLeftShoot>5 && indexYLeftShoot>6){
+      	indexXLeftShoot=2;
+      	indexYLeftShoot=6;
+      }
+      if(indexXRightShoot>5 && indexYRightShoot>4){
+      	indexXRightShoot=2;
+      	indexYRightShoot=4;
+      }
+      if(indexXleft>5 && indexYleft>2){
+      	indexXleft=2;
+      	indexYleft=2;
+      }
+      if(indexX>5 && indexY>0){
+            indexX=2;
+            indexY=0;
+      }      
+} 
+
+setInterval(updateSprite,60);
+
+
+
+
+//Check the collision
+function colCheck(shapeA, shapeB) {
+    // get the vectors to check against
+    var vX = (shapeA.x + (shapeA.width/2)) - (shapeB.x + (shapeB.width / 2)),
+        vY = (shapeA.y + (shapeA.height/2)) - (shapeB.y + (shapeB.height / 2)),
+        // add the half widths and half heights of the objects
+        hWidths = (shapeA.width/2 ) + (shapeB.width/2),
+        hHeights = (shapeA.height/2) + (shapeB.height/2),
+        colDir = null;
+
+    // if the x and y vector are less than the half width or half height, they we must be inside the object, causing a collision
+    if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
+        // figures out on which side we are colliding (top, bottom, left, or right)
+        var oX = hWidths - Math.abs(vX),
+            oY = hHeights - Math.abs(vY);
+
+        if (oX >= oY) {
+            if (vY > 0) {
+                colDir = "t";
+                shapeA.y += oY;
+            } else {
+                colDir = "b";
+                shapeA.y -= oY;
+            }
+        } else {
+            if (vX > 0) {
+                colDir = "l";
+                shapeA.x += oX;
+            } else {
+                colDir = "r";
+                shapeA.x -= oX;
+            }
+        }
+    }
+    return colDir;
+}
+
+document.body.addEventListener("keydown", function (e) {
+    keys[e.keyCode] = true;
+});
+
+document.body.addEventListener("keyup", function (e) {
+    keys[e.keyCode] = false;
+});
+
+</script>
+</body>
+</html>
